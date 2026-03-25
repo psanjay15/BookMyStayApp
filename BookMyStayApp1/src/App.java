@@ -11,7 +11,7 @@
  * @author Ss
  * @version 1.0
  */
-public class BookMyStayApp {
+class BookMyStayApp3 {
 
     /**
      * Main method - Entry point of the application.
