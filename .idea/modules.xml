@@ -2,9 +2,14 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
+feature/UC3-RoomManagement
+      <module fileurl="file://$PROJECT_DIR$/App/App.iml" filepath="$PROJECT_DIR$/App/App.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/BookMyStayApp.iml" filepath="$PROJECT_DIR$/.idea/BookMyStayApp.iml" />
+
       <module fileurl="file://$PROJECT_DIR$/.idea/BookMyStayApp.iml" filepath="$PROJECT_DIR$/.idea/BookMyStayApp.iml" />
       <module fileurl="file://$PROJECT_DIR$/BookMyStayApp1/BookMyStayApp1.iml" filepath="$PROJECT_DIR$/BookMyStayApp1/BookMyStayApp1.iml" />
       <module fileurl="file://$PROJECT_DIR$/BookMyStayApp1/BookMyStayApp2/BookMyStayApp2.iml" filepath="$PROJECT_DIR$/BookMyStayApp1/BookMyStayApp2/BookMyStayApp2.iml" />
+dev
     </modules>
   </component>
 </project>
