@@ -1,82 +1,81 @@
 import java.util.*;
 
-// Room domain model (contains details)
-class Room {
-    private String type;
-    private double price;
-    private String amenities;
+// Reservation class (represents booking request)
+class Reservation {
+    private static int idCounter = 1;
 
-    public Room(String type, double price, String amenities) {
-        this.type = type;
-        this.price = price;
-        this.amenities = amenities;
+    private int reservationId;
+    private String guestName;
+    private String roomType;
+
+    public Reservation(String guestName, String roomType) {
+        this.reservationId = idCounter++;
+        this.guestName = guestName;
+        this.roomType = roomType;
     }
 
-    public String getType() {
-        return type;
+    public int getReservationId() {
+        return reservationId;
     }
 
-    public double getPrice() {
-        return price;
+    public String getGuestName() {
+        return guestName;
     }
 
-    public String getAmenities() {
-        return amenities;
-    }
-}
-
-// Centralized Inventory (same as Use Case 3)
-class RoomInventory {
-    private Map<String, Integer> inventory = new HashMap<>();
-
-    public void addRoomType(String type, int count) {
-        inventory.put(type, count);
+    public String getRoomType() {
+        return roomType;
     }
 
-    // READ-ONLY access
-    public int getAvailability(String type) {
-        return inventory.getOrDefault(type, 0);
-    }
-
-    // Read-only full map (safe copy)
-    public Map<String, Integer> getAllAvailability() {
-        return new HashMap<>(inventory); // defensive copy
+    @Override
+    public String toString() {
+        return "Reservation ID: " + reservationId +
+                " | Guest: " + guestName +
+                " | Room Type: " + roomType;
     }
 }
 
-// Search Service (READ-ONLY)
-class SearchService {
+// Booking Request Queue (FIFO handling)
+class BookingRequestQueue {
 
-    private RoomInventory inventory;
-    private Map<String, Room> roomCatalog;
+    private Queue<Reservation> queue;
 
-    public SearchService(RoomInventory inventory, Map<String, Room> roomCatalog) {
-        this.inventory = inventory;
-        this.roomCatalog = roomCatalog;
+    public BookingRequestQueue() {
+        queue = new LinkedList<>();
     }
 
-    // Search available rooms (NO state change)
-    public void searchAvailableRooms() {
-        System.out.println("\n--- Available Rooms ---");
+    // Add booking request (enqueue)
+    public void addRequest(Reservation reservation) {
+        queue.offer(reservation);
+        System.out.println("Request added: " + reservation);
+    }
 
-        Map<String, Integer> availabilityMap = inventory.getAllAvailability();
+    // View next request (peek, no removal)
+    public Reservation viewNextRequest() {
+        return queue.peek();
+    }
 
-        for (String type : availabilityMap.keySet()) {
+    // Get and remove next request (dequeue)
+    public Reservation processNextRequest() {
+        return queue.poll();
+    }
 
-            int availableCount = availabilityMap.get(type);
+    // Display all queued requests
+    public void displayQueue() {
+        System.out.println("\n--- Booking Request Queue ---");
 
-            // Defensive check: show only available rooms
-            if (availableCount > 0 && roomCatalog.containsKey(type)) {
-
-                Room room = roomCatalog.get(type);
-
-                System.out.println("Room Type: " + room.getType());
-                System.out.println("Price: ₹" + room.getPrice());
-                System.out.println("Amenities: " + room.getAmenities());
-                System.out.println("Available: " + availableCount);
-                System.out.println("---------------------------");
-            }
+        if (queue.isEmpty()) {
+            System.out.println("No pending requests.");
+            return;
         }
+
+        for (Reservation r : queue) {
+            System.out.println(r);
+        }
+        System.out.println("-----------------------------\n");
+    }
+
+    public boolean isEmpty() {
+        return queue.isEmpty();
     }
 }
 
@@ -85,23 +84,30 @@ public class BookMyStayApp {
 
     public static void main(String[] args) {
 
-        // Step 1: Initialize inventory
-        RoomInventory inventory = new RoomInventory();
-        inventory.addRoomType("Single", 5);
-        inventory.addRoomType("Double", 0); // unavailable
-        inventory.addRoomType("Suite", 2);
+        // Initialize booking request queue
+        BookingRequestQueue requestQueue = new BookingRequestQueue();
 
-        // Step 2: Create room catalog (domain data)
-        Map<String, Room> roomCatalog = new HashMap<>();
+        // Guests submit booking requests (arrival order matters)
+        requestQueue.addRequest(new Reservation("Alice", "Single"));
+        requestQueue.addRequest(new Reservation("Bob", "Suite"));
+        requestQueue.addRequest(new Reservation("Charlie", "Single"));
+        requestQueue.addRequest(new Reservation("David", "Double"));
 
-        roomCatalog.put("Single", new Room("Single", 1500, "Bed, WiFi, AC"));
-        roomCatalog.put("Double", new Room("Double", 2500, "2 Beds, WiFi, AC, TV"));
-        roomCatalog.put("Suite", new Room("Suite", 5000, "Luxury Bed, WiFi, AC, TV, Mini Bar"));
+        // Display all requests (FIFO order)
+        requestQueue.displayQueue();
 
-        // Step 3: Search Service
-        SearchService searchService = new SearchService(inventory, roomCatalog);
+        // Peek next request (without removing)
+        System.out.println("Next Request to Process: " + requestQueue.viewNextRequest());
 
-        // Step 4: Guest searches rooms
-        searchService.searchAvailableRooms();
+        // Simulate processing (NO inventory update yet)
+        System.out.println("\nProcessing Requests (no allocation yet):");
+
+        while (!requestQueue.isEmpty()) {
+            Reservation r = requestQueue.processNextRequest();
+            System.out.println("Processing: " + r);
+        }
+
+        // Final queue state
+        requestQueue.displayQueue();
     }
 }
