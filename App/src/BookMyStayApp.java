@@ -96,7 +96,9 @@ class BookingValidator {
 }
 
 // Main Application
-public class BookMyStayApp {
+public class BookMyStayApp
+{
+
 
     public static void main(String[] args) {
 
