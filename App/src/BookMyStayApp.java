@@ -1,48 +1,17 @@
 import java.util.*;
 
-// Custom Exception
-class InvalidBookingException extends Exception {
-    public InvalidBookingException(String message) {
-        super(message);
-    }
-}
+// Booking Request
+class BookingRequest {
+    String guestName;
+    String roomType;
 
-// Reservation Class
-class Reservation {
-    private String id;
-    private String guestName;
-    private String roomType;
-
-    public Reservation(String id, String guestName, String roomType) {
-        this.id = id;
+    public BookingRequest(String guestName, String roomType) {
         this.guestName = guestName;
         this.roomType = roomType;
     }
-
-    public String getRoomType() {
-        return roomType;
-    }
-
-    @Override
-    public String toString() {
-        return "ID: " + id + ", Guest: " + guestName + ", Room: " + roomType;
-    }
 }
 
-// Booking History (same as Use Case 8)
-class BookingHistory {
-    private List<Reservation> bookings = new ArrayList<>();
-
-    public void addReservation(Reservation r) {
-        bookings.add(r);
-    }
-
-    public List<Reservation> getBookings() {
-        return new ArrayList<>(bookings); // safe copy
-    }
-}
-
-// Inventory Manager
+// Thread-safe Inventory Manager
 class InventoryManager {
     private Map<String, Integer> rooms = new HashMap<>();
 
@@ -52,101 +21,105 @@ class InventoryManager {
         rooms.put("Suite", 1);
     }
 
-    // Validate room type
-    public void validateRoomType(String roomType) throws InvalidBookingException {
+    // Critical Section (Thread Safe)
+    public synchronized boolean bookRoom(String roomType, String guestName) {
         if (!rooms.containsKey(roomType)) {
-            throw new InvalidBookingException("Invalid room type: " + roomType);
+            System.out.println("❌ Invalid room type for " + guestName);
+            return false;
         }
-    }
 
-    // Check availability
-    public void checkAvailability(String roomType) throws InvalidBookingException {
-        if (rooms.get(roomType) <= 0) {
-            throw new InvalidBookingException("No rooms available for: " + roomType);
+        int available = rooms.get(roomType);
+
+        if (available > 0) {
+            // Simulate delay (to expose race conditions if not synchronized)
+            try { Thread.sleep(100); } catch (InterruptedException e) {}
+
+            rooms.put(roomType, available - 1);
+            System.out.println("✅ " + guestName + " booked " + roomType);
+            return true;
+        } else {
+            System.out.println("❌ No " + roomType + " rooms left for " + guestName);
+            return false;
         }
-    }
-
-    // Book room safely
-    public void bookRoom(String roomType) throws InvalidBookingException {
-        validateRoomType(roomType);
-        checkAvailability(roomType);
-
-        rooms.put(roomType, rooms.get(roomType) - 1);
     }
 
     public void displayInventory() {
-        System.out.println("Inventory: " + rooms);
+        System.out.println("\nFinal Inventory: " + rooms);
     }
 }
 
-// Validator Class (Fail-Fast)
-class BookingValidator {
+// Shared Booking Queue
+class BookingQueue {
+    private Queue<BookingRequest> queue = new LinkedList<>();
 
-    public static void validate(String guestName, String roomType)
-            throws InvalidBookingException {
+    public synchronized void addRequest(BookingRequest request) {
+        queue.add(request);
+    }
 
-        if (guestName == null || guestName.trim().isEmpty()) {
-            throw new InvalidBookingException("Guest name cannot be empty");
-        }
+    public synchronized BookingRequest getRequest() {
+        return queue.poll();
+    }
+}
 
-        if (roomType == null || roomType.trim().isEmpty()) {
-            throw new InvalidBookingException("Room type cannot be empty");
+// Worker Thread
+class BookingProcessor extends Thread {
+
+    private BookingQueue queue;
+    private InventoryManager inventory;
+
+    public BookingProcessor(BookingQueue queue, InventoryManager inventory) {
+        this.queue = queue;
+        this.inventory = inventory;
+    }
+
+    @Override
+    public void run() {
+        while (true) {
+            BookingRequest request;
+
+            // Fetch request safely
+            synchronized (queue) {
+                request = queue.getRequest();
+            }
+
+            if (request == null) break;
+
+            // Process booking (critical section inside)
+            inventory.bookRoom(request.roomType, request.guestName);
         }
     }
 }
 
-// Main Application
-public class BookMyStayApp
-{
+// Main Class
+public class BookMyStayApp {
 
-
-    public static void main(String[] args) {
+    public static void main(String[] args) throws InterruptedException {
 
         InventoryManager inventory = new InventoryManager();
-        BookingHistory history = new BookingHistory();
+        BookingQueue queue = new BookingQueue();
 
-        String[][] inputs = {
-                {"Sanjay", "Deluxe"},
-                {"", "Standard"},        // Invalid name
-                {"Rahul", "Premium"},   // Invalid room
-                {"Anjali", "Suite"},
-                {"Kiran", "Suite"}      // No availability
-        };
+        // Simulating multiple guest requests
+        queue.addRequest(new BookingRequest("Sanjay", "Deluxe"));
+        queue.addRequest(new BookingRequest("Rahul", "Deluxe"));
+        queue.addRequest(new BookingRequest("Anjali", "Standard"));
+        queue.addRequest(new BookingRequest("Kiran", "Standard"));
+        queue.addRequest(new BookingRequest("Ravi", "Suite"));
+        queue.addRequest(new BookingRequest("Meena", "Suite"));
 
-        int id = 101;
+        // Multiple threads (concurrent users)
+        BookingProcessor t1 = new BookingProcessor(queue, inventory);
+        BookingProcessor t2 = new BookingProcessor(queue, inventory);
+        BookingProcessor t3 = new BookingProcessor(queue, inventory);
 
-        for (String[] input : inputs) {
-            try {
-                String guest = input[0];
-                String room = input[1];
+        t1.start();
+        t2.start();
+        t3.start();
 
-                // Step 1: Input validation (Fail-Fast)
-                BookingValidator.validate(guest, room);
+        t1.join();
+        t2.join();
+        t3.join();
 
-                // Step 2: Inventory validation + booking
-                inventory.bookRoom(room);
-
-                // Step 3: Create reservation
-                Reservation r = new Reservation("R" + id++, guest, room);
-
-                // Step 4: Store in history
-                history.addReservation(r);
-
-                System.out.println("✅ Booking Successful: " + r);
-
-            } catch (InvalidBookingException e) {
-                // Graceful error handling
-                System.out.println("❌ Booking Failed: " + e.getMessage());
-            }
-        }
-
-        // System continues running
-        System.out.println("\n📋 Booking History:");
-        for (Reservation r : history.getBookings()) {
-            System.out.println(r);
-        }
-
-        System.out.println();
+        // Final system state
         inventory.displayInventory();
     }
 }
